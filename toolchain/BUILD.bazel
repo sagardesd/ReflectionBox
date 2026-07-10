@@ -1,0 +1,66 @@
+load(":cc_toolchain_config.bzl", "cc_toolchain_config")
+load("@bazel_tools//tools/cpp:toolchain_utils.bzl", "find_cpp_toolchain")
+
+package(default_visibility = ["//visibility:public"])
+
+# ── Toolchain config ──────────────────────────────────────────
+cc_toolchain_config(
+    name = "p2996_clang_config",
+    compiler_path       = "/opt/clang-p2996/bin/clang++",
+    ar_path             = "/opt/clang-p2996/bin/llvm-ar",
+    strip_path          = "/opt/clang-p2996/bin/llvm-strip",
+    nm_path             = "/opt/clang-p2996/bin/llvm-nm",
+    objcopy_path        = "/opt/clang-p2996/bin/llvm-objcopy",
+    objdump_path        = "/opt/clang-p2996/bin/llvm-objdump",
+    ld_path             = "/opt/clang-p2996/bin/ld.lld",
+    sysroot             = "",
+    resource_dir_flag   = "-resource-dir=/opt/clang-p2996/lib/clang/current",
+    stdlib_includes     = ["/opt/clang-p2996/include/c++/v1"],
+    stdlib_lib_dirs     = ["/opt/clang-p2996/lib"],
+    extra_compile_flags = [
+        "-std=c++26",
+        "-freflection",
+        "-stdlib=libc++",
+        "-fcolor-diagnostics",
+    ],
+    extra_link_flags = [
+        "-stdlib=libc++",
+        "-lc++abi",
+        "-lunwind",
+        "-fuse-ld=lld",
+        "-Wl,-rpath,/opt/clang-p2996/lib",
+    ],
+)
+
+# ── cc_toolchain ─────────────────────────────────────────────
+cc_toolchain(
+    name = "p2996_cc_toolchain",
+    toolchain_config = ":p2996_clang_config",
+    all_files        = ":empty",
+    ar_files         = ":empty",
+    as_files         = ":empty",
+    compiler_files   = ":empty",
+    dwp_files        = ":empty",
+    linker_files     = ":empty",
+    objcopy_files    = ":empty",
+    strip_files      = ":empty",
+    supports_param_files = True,
+)
+
+# ── Toolchain registration entry ─────────────────────────────
+toolchain(
+    name = "p2996_toolchain",
+    toolchain        = ":p2996_cc_toolchain",
+    toolchain_type   = "@bazel_tools//tools/cpp:toolchain_type",
+    exec_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+# ── Empty filegroup (compiler lives on the host path) ────────
+filegroup(name = "empty")

@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+"""
+gen_compile_commands — generate compile_commands.json for any .cc/.cpp files
+under the workspace so clangd understands -freflection and <meta>.
+
+Usage (run inside the container):
+  ./scripts/gen_compile_commands          # scans /workspace
+  ./scripts/gen_compile_commands mydir    # scans mydir
+"""
+import json, os, sys
+from pathlib import Path
+
+CLANGPP   = "/opt/clang-p2996/bin/clang++"
+FLAGS     = [
+    "-std=c++26",
+    "-freflection",
+    "-stdlib=libc++",
+    "-fcolor-diagnostics",
+    "-Wall", "-Wextra",
+    "-I/workspace",
+    "-I/opt/clang-p2996/include/c++/v1",
+    "-isystem/opt/clang-p2996/lib/clang/current/include",
+]
+EXTS      = {".cc", ".cpp", ".cxx", ".c++"}
+
+root = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else Path("/workspace")
+
+entries = []
+for path in sorted(root.rglob("*")):
+    if path.suffix in EXTS and ".cache" not in path.parts:
+        entries.append({
+            "directory": str(path.parent),
+            "file":      str(path),
+            "command":   " ".join([CLANGPP] + FLAGS + [str(path)]),
+        })
+
+out = root / "compile_commands.json"
+out.write_text(json.dumps(entries, indent=2))
+print(f"Wrote {len(entries)} entries to {out}")

@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# cpprun — compile a single C++26 P2996 reflection file and run it
+#
+# Usage:
+#   cpprun file.cc [-- arg1 arg2 ...]
+#   cpprun file.cc -O2 [-- arg1 arg2 ...]
+#
+# Extra flags before '--' are forwarded to the compiler.
+# Arguments after '--' are forwarded to the compiled binary.
+
+set -euo pipefail
+
+CLANG=/opt/clang-p2996/bin/clang++
+BOLD='\033[1m'
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+CYAN='\033[0;36m'
+DIM='\033[2m'
+RESET='\033[0m'
+
+# ── Parse arguments ───────────────────────────────────────────
+if [[ $# -lt 1 ]]; then
+    echo "Usage: cpprun <file.cc> [compiler-flags...] [-- binary-args...]" >&2
+    exit 1
+fi
+
+SOURCE="$1"; shift
+
+if [[ ! -f "$SOURCE" ]]; then
+    echo -e "${RED}error:${RESET} file not found: $SOURCE" >&2
+    exit 1
+fi
+
+COMPILER_FLAGS=()
+BINARY_ARGS=()
+READING_BINARY_ARGS=false
+
+for arg in "$@"; do
+    if [[ "$arg" == "--" ]]; then
+        READING_BINARY_ARGS=true
+        continue
+    fi
+    if $READING_BINARY_ARGS; then
+        BINARY_ARGS+=("$arg")
+    else
+        COMPILER_FLAGS+=("$arg")
+    fi
+done
+
+# ── Output binary in /tmp so the workspace stays clean ───────
+BASENAME=$(basename "${SOURCE%.*}")
+BINARY=$(mktemp -t "cpprun_${BASENAME}_XXXXXX")
+trap 'rm -f "$BINARY"' EXIT
+
+# ── Print header ──────────────────────────────────────────────
+echo -e "${BOLD}${CYAN}━━━  cpprun  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+echo -e "${DIM}  source :${RESET} ${SOURCE}"
+echo -e "${DIM}  flags  :${RESET} -std=c++26 -freflection -stdlib=libc++ ${COMPILER_FLAGS[*]:-}"
+echo -e "${BOLD}${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+
+# ── Compile ───────────────────────────────────────────────────
+echo -e "\n${BOLD}[1/2] Compiling…${RESET}"
+
+COMPILE_START=$SECONDS
+if "$CLANG" \
+        -std=c++26 \
+        -freflection \
+        -stdlib=libc++ \
+        -fcolor-diagnostics \
+        -Wall -Wextra \
+        -I/workspace \
+        -I"$(dirname "$(realpath "$SOURCE")")" \
+        "${COMPILER_FLAGS[@]}" \
+        "$SOURCE" \
+        -o "$BINARY" \
+        -Wl,-rpath,/opt/clang-p2996/lib \
+        2>&1; then
+    COMPILE_SECS=$(( SECONDS - COMPILE_START ))
+    echo -e "${GREEN}✓ compiled${RESET} ${DIM}(${COMPILE_SECS}s)${RESET}"
+else
+    echo -e "\n${RED}✗ compilation failed${RESET}" >&2
+    exit 1
+fi
+
+# ── Run ───────────────────────────────────────────────────────
+echo -e "\n${BOLD}[2/2] Running…${RESET}"
+echo -e "${BOLD}${CYAN}━━━  output  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
+
+RUN_START=$SECONDS
+set +e
+"$BINARY" "${BINARY_ARGS[@]}"
+EXIT_CODE=$?
+RUN_SECS=$(( SECONDS - RUN_START ))
+set -e
+
+echo -e "\n${BOLD}${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+if [[ $EXIT_CODE -eq 0 ]]; then
+    echo -e "${GREEN}✓ exited 0${RESET} ${DIM}(ran ${RUN_SECS}s)${RESET}"
+else
+    echo -e "${RED}✗ exited ${EXIT_CODE}${RESET} ${DIM}(ran ${RUN_SECS}s)${RESET}"
+fi
+
+exit $EXIT_CODE
