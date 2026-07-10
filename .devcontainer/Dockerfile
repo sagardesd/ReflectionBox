@@ -43,6 +43,10 @@ RUN cmake -G Ninja \
 RUN NJOBS=$([ "${JOBS}" -gt 0 ] 2>/dev/null && echo "${JOBS}" || nproc) && \
     cmake --build /build --target install --parallel "${NJOBS}"
 
+# cmake install may not create the clang++ symlink on all configurations
+RUN [ -e /opt/clang-p2996/bin/clang++ ] || \
+    ln -sf clang /opt/clang-p2996/bin/clang++
+
 RUN CLANG_VER=$(ls /opt/clang-p2996/lib/clang/ | sort -V | tail -1) && \
     ln -s "/opt/clang-p2996/lib/clang/${CLANG_VER}" /opt/clang-p2996/lib/clang/current
 
