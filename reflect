@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+# reflect — run a C++26 P2996 reflection file inside the ReflectionBox container.
+#
+# Usage:
+#   ./reflect <file.cc> [compiler-flags...] [-- binary-args...]
+#
+# Examples:
+#   ./reflect examples/reflection_demo.cc
+#   ./reflect my_demo.cc -O2
+#   ./reflect my_demo.cc -freflection-latest
+#   ./reflect my_demo.cc -g -fsanitize=address,undefined -- --input data.txt
+#
+# The script:
+#   1. Pulls sagardesd/reflectionbox:latest from Docker Hub (first run ~1-2 min)
+#      OR builds from source locally if --build is passed
+#   2. Spawns a temporary container with the repo mounted at /workspace
+#   3. Runs `cpprun <file> [flags]` inside it, streaming output to your terminal
+#   4. Exits with the same code as the compiled binary
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+REMOTE_IMAGE="sagardesd/reflectionbox:latest"
+LOCAL_IMAGE="reflectionbox:local"
+DOCKERFILE="${SCRIPT_DIR}/.devcontainer/Dockerfile"
+
+BOLD='\033[1m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+CYAN='\033[0;36m'
+DIM='\033[2m'
+RESET='\033[0m'
+
+# ── Usage ─────────────────────────────────────────────────────
+usage() {
+    echo -e "${BOLD}Usage:${RESET}  ./reflect <file.cc> [compiler-flags...] [-- binary-args...]"
+    echo
+    echo -e "${BOLD}Examples:${RESET}"
+    echo "  ./reflect examples/reflection_demo.cc"
+    echo "  ./reflect my_demo.cc -O2"
+    echo "  ./reflect my_demo.cc -freflection-latest"
+    echo "  ./reflect my_demo.cc -g -fsanitize=address,undefined"
+    echo "  ./reflect my_demo.cc -- --my-arg value"
+    echo
+    echo -e "${BOLD}Image options (mutually exclusive):${RESET}"
+    echo "  (default)   Pull sagardesd/reflectionbox:latest from Docker Hub (~1-2 min first time)"
+    echo "  --build     Build the image from source locally (~60-90 min, compiles LLVM)"
+    echo
+    echo -e "${BOLD}Other:${RESET}"
+    echo "  --help      Show this message"
+}
+
+if [[ $# -lt 1 || "$1" == "-h" || "$1" == "--help" ]]; then
+    usage; exit 0
+fi
+
+# ── Parse --build flag ────────────────────────────────────────
+BUILD_FROM_SOURCE=false
+if [[ "$1" == "--build" ]]; then
+    BUILD_FROM_SOURCE=true
+    shift
+fi
+
+if [[ $# -lt 1 ]]; then
+    echo -e "${RED}error:${RESET} no source file given" >&2
+    usage; exit 1
+fi
+
+SOURCE_FILE="$1"; shift
+
+SOURCE_ABS="$(realpath "${SOURCE_FILE}")"
+if [[ "${SOURCE_ABS}" != "${SCRIPT_DIR}"/* ]]; then
+    echo -e "${RED}error:${RESET} file must be inside the ReflectionBox directory." >&2
+    exit 1
+fi
+if [[ ! -f "${SOURCE_ABS}" ]]; then
+    echo -e "${RED}error:${RESET} file not found: ${SOURCE_FILE}" >&2
+    exit 1
+fi
+SOURCE_REL="${SOURCE_ABS#${SCRIPT_DIR}/}"
+
+# ── Docker check ──────────────────────────────────────────────
+if ! command -v docker &>/dev/null; then
+    echo -e "${RED}error:${RESET} docker not found. Install Docker Desktop or Docker Engine." >&2
+    exit 1
+fi
+if ! docker info &>/dev/null; then
+    echo -e "${RED}error:${RESET} Docker daemon is not running." >&2
+    exit 1
+fi
+
+# ── Ensure image is available ─────────────────────────────────
+if [[ "${BUILD_FROM_SOURCE}" == true ]]; then
+    echo -e "${YELLOW}[reflect]${RESET} Building image from source (this takes 60-90 min)..."
+    NJOBS=$(nproc 2>/dev/null || echo 4)
+    docker build \
+        --target dev \
+        --build-arg JOBS="${NJOBS}" \
+        -t "${LOCAL_IMAGE}" \
+        -f "${DOCKERFILE}" \
+        "${SCRIPT_DIR}"
+    ACTIVE_IMAGE="${LOCAL_IMAGE}"
+    echo -e "${GREEN}[reflect]${RESET} Build complete.\n"
+else
+    # Use remote image; pull only if not already present
+    if [[ -z "$(docker images -q "${REMOTE_IMAGE}" 2>/dev/null)" ]]; then
+        echo -e "${YELLOW}[reflect]${RESET} Pulling ${REMOTE_IMAGE} from Docker Hub..."
+        echo -e "${DIM}  (~1-2 min depending on your connection, ~3 GB)${RESET}\n"
+        docker pull "${REMOTE_IMAGE}"
+        echo -e "\n${GREEN}[reflect]${RESET} Pull complete.\n"
+    else
+        echo -e "${DIM}[reflect] Using cached ${REMOTE_IMAGE}${RESET}"
+    fi
+    ACTIVE_IMAGE="${REMOTE_IMAGE}"
+fi
+
+# ── Compile and run ───────────────────────────────────────────
+echo -e "${BOLD}${CYAN}[reflect]${RESET} ${SOURCE_REL}\n"
+
+docker run \
+    --rm \
+    --interactive \
+    --tty \
+    --volume "${SCRIPT_DIR}:/workspace" \
+    --workdir /workspace \
+    --user "$(id -u):$(id -g)" \
+    --env HOME=/tmp \
+    "${ACTIVE_IMAGE}" \
+    cpprun "${SOURCE_REL}" "$@"

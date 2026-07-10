@@ -1,0 +1,69 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "reflect: compile & run",
+      "type": "shell",
+      "command": "cpprun",
+      "args": ["${file}"],
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "echo": false },
+      "problemMatcher": {
+        "owner": "clang",
+        "fileLocation": ["absolute"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error|note):\\s+(.*)$",
+          "file": 1, "line": 2, "column": 3, "severity": 4, "message": 5
+        }
+      }
+    },
+    {
+      "label": "reflect: compile & run -O2",
+      "type": "shell",
+      "command": "cpprun",
+      "args": ["${file}", "-O2"],
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "echo": false },
+      "problemMatcher": {
+        "owner": "clang",
+        "fileLocation": ["absolute"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error|note):\\s+(.*)$",
+          "file": 1, "line": 2, "column": 3, "severity": 4, "message": 5
+        }
+      }
+    },
+    {
+      "label": "reflect: compile & run (ASan + UBSan)",
+      "type": "shell",
+      "command": "cpprun",
+      "args": ["${file}", "-g", "-O0", "-fsanitize=address,undefined"],
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "echo": false },
+      "problemMatcher": {
+        "owner": "clang",
+        "fileLocation": ["absolute"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error|note):\\s+(.*)$",
+          "file": 1, "line": 2, "column": 3, "severity": 4, "message": 5
+        }
+      }
+    },
+    {
+      "label": "reflect: compile & run (-freflection-latest)",
+      "type": "shell",
+      "command": "cpprun",
+      "args": ["${file}", "-freflection-latest"],
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true, "echo": false },
+      "problemMatcher": {
+        "owner": "clang",
+        "fileLocation": ["absolute"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error|note):\\s+(.*)$",
+          "file": 1, "line": 2, "column": 3, "severity": 4, "message": 5
+        }
+      }
+    }
+  ]
+}

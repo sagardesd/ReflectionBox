@@ -1,14 +1,10 @@
 # ReflectionBox
 
-A ready-to-use devcontainer for experimenting with **C++26 static reflection (P2996)**.
+Your sandbox for C++26 static reflection. Clone, run one script, see output — no local LLVM install needed.
 
-Clone it, open in VS Code, and you get a full compiler environment with a
-one-command workflow to write, compile, and run any reflection-heavy C++ file —
-no local LLVM installation needed.
-
-It builds [Bloomberg's `clang-p2996` fork](https://github.com/bloomberg/clang-p2996)
-from source inside Docker and wires it to a Bazel toolchain and a `cpprun`
-helper script.
+Builds [Bloomberg's `clang-p2996` fork](https://github.com/bloomberg/clang-p2996) inside Docker and
+exposes a single entry-point: `./reflect <file.cc>` — it spins up the container, compiles your file,
+runs it, and streams the output back to your terminal.
 
 > **Heads up:** This compiler is experimental — Bloomberg's own words are
 > *"DO NOT use for production"*. Expect occasional crashes on complex programs.
@@ -17,11 +13,12 @@ helper script.
 
 ## Prerequisites
 
-| Tool | Purpose |
+Only Docker is required to use `./reflect`. VS Code is optional (for the devcontainer editor experience).
+
+| Tool | Required for |
 |---|---|
-| [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine) | Runs the container |
-| [VS Code](https://code.visualstudio.com/) | Editor |
-| [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) | Opens the folder inside the container |
+| [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine on Linux) | `./reflect` and the devcontainer |
+| [VS Code](https://code.visualstudio.com/) + [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) | Interactive editor inside the container *(optional)* |
 
 ---
 
@@ -30,13 +27,11 @@ helper script.
 ```bash
 git clone https://github.com/<you>/ReflectionBox
 cd ReflectionBox
-code .
+./reflect examples/reflection_demo.cc
 ```
 
-VS Code will show a popup — click **Reopen in Container**.
-
-> The **first build takes 60–90 minutes** (it compiles LLVM from source).
-> Every start after that is instant — Docker caches the compiler layer.
+The first run builds the Docker image (~60–90 min, compiling LLVM from source).
+Every run after that is instant — Docker caches the compiler layer.
 
 ---
 
@@ -68,13 +63,15 @@ int main() {
 }
 ```
 
-Compile and run it in one command:
+Compile and run it in one command (from your host):
 
 ```bash
-cpprun hello.cc
+./reflect hello.cc
 ```
 
 ```
+[reflect] hello.cc
+
 ━━━  cpprun  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   source : hello.cc
   flags  : -std=c++26 -freflection -stdlib=libc++
@@ -101,9 +98,33 @@ Colors:
 
 ---
 
-## Three ways to compile and run
+## Ways to compile and run
 
-### 1. `cpprun` in the terminal
+### 1. `./reflect` — from your host machine (no VS Code needed)
+
+```bash
+# Basic
+./reflect my_demo.cc
+
+# With compiler flags
+./reflect my_demo.cc -O2
+./reflect my_demo.cc -freflection-latest
+./reflect my_demo.cc -g -O0 -fsanitize=address,undefined
+
+# Pass arguments to the compiled binary
+./reflect my_demo.cc -- --input data.txt
+
+# Force a full image rebuild (e.g. after pulling new changes)
+./reflect --rebuild my_demo.cc
+```
+
+`reflect` does the whole thing: ensures the image exists, spawns a temporary
+container with the repo mounted, runs `cpprun` inside it, streams the output
+back, and exits with the binary's exit code. Nothing is left running afterwards.
+
+---
+
+### 2. `cpprun` inside the container (VS Code terminal)
 
 ```bash
 # Basic
@@ -125,7 +146,10 @@ cpprun my_demo.cc -- --input data.txt
 `cpprun` compiles with `-std=c++26 -freflection -stdlib=libc++` by default.
 The binary is placed in `/tmp` so the workspace stays clean.
 
-### 2. VS Code task — `Ctrl+Shift+B`
+Open the VS Code devcontainer first: open the folder in VS Code and click
+**Reopen in Container** when prompted.
+
+### 3. VS Code task — `Ctrl+Shift+B`
 
 Open any `.cc` file and press **`Ctrl+Shift+B`** to compile and run it.
 Compiler errors appear as clickable squiggles in the editor.
@@ -139,7 +163,7 @@ More variants in the task picker (`Ctrl+Shift+P` → **Run Task**):
 | compile & run debug + sanitisers | `-g -O0 -fsanitize=address,undefined` |
 | compile & run reflection-latest | `-freflection-latest` |
 
-### 3. Bazel
+### 4. Bazel
 
 ```bash
 # Run the included examples

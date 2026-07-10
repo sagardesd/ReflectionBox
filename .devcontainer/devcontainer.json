@@ -1,0 +1,33 @@
+{
+  "name": "ReflectionBox — C++26 P2996",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "..",
+    "target": "dev",
+    "args": { "JOBS": "0" }
+  },
+
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+  "workspaceFolder": "/workspace",
+
+  "remoteUser": "dev",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "llvm-vs-code-extensions.vscode-clangd"
+      ],
+      "settings": {
+        "clangd.path": "/opt/clang-p2996/bin/clangd",
+        "clangd.arguments": [
+          "--background-index",
+          "--header-insertion=never",
+          "--completion-style=detailed"
+        ],
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  },
+
+  "postCreateCommand": "clang++ --version | head -1 && gen_compile_commands && echo 'Ready — run: cpprun <file.cc>'"
+}

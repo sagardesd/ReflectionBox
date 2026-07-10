@@ -1,0 +1,19 @@
+# Bazel
+bazel-*
+.bazel/
+
+# clangd
+compile_commands.json
+.cache/
+
+# Build artefacts
+*.o
+*.a
+*.so
+*.out
+a.out
+
+# Editor
+.vscode/settings.json
+*.swp
+.DS_Store
