@@ -3,14 +3,14 @@ load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
 
 package(default_visibility = ["//visibility:public"])
 
-# ── json26 header-only library ───────────────────────────────
+# json26 header-only library
 cc_library(
     name = "json26",
     hdrs = ["json26.hpp"],
     includes = ["."],
 )
 
-# ── Full example binary ───────────────────────────────────────
+# Full example binary
 cc_binary(
     name = "json26_example",
     srcs = ["examples/json26_example.cc"],
@@ -18,13 +18,13 @@ cc_binary(
     deps = [":json26"],
 )
 
-# ── Reflection demo (standalone) ─────────────────────────────
+# Reflection demo (standalone)
 cc_binary(
     name = "reflection_demo",
     srcs = ["examples/reflection_demo.cc"],
 )
 
-# ── Tests ─────────────────────────────────────────────────────
+# Tests
 cc_test(
     name = "json26_test",
     srcs = ["examples/json26_test.cc"],
