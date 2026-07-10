@@ -52,7 +52,8 @@ RUN CLANG_VER=$(ls /opt/clang-p2996/lib/clang/ | sort -V | tail -1) && \
 
 RUN echo 'int main(){}' | \
     /opt/clang-p2996/bin/clang++ -std=c++26 -freflection -stdlib=libc++ \
-    -x c++ - -o /tmp/smoke && /tmp/smoke && echo "Smoke test PASSED"
+    -x c++ - -o /tmp/smoke && \
+    LD_LIBRARY_PATH=/opt/clang-p2996/lib /tmp/smoke && echo "Smoke test PASSED"
 
 
 # ============================================================
