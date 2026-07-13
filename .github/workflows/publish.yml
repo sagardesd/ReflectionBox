@@ -28,20 +28,23 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: .devcontainer/Dockerfile
           target: dev
-          push: true
-          # Use all available cores on the runner
+          push: false
+          load: true
           build-args: |
             JOBS=4
           tags: |
             sagardesd/reflectionbox:latest
             sagardesd/reflectionbox:${{ github.sha }}
-          # Cache layers in GitHub Actions cache to speed up subsequent builds.
-          # The expensive LLVM builder stage is cached separately from the dev stage.
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=registry,ref=sagardesd/reflectionbox:buildcache
+          cache-to: type=registry,ref=sagardesd/reflectionbox:buildcache,mode=max
+
+      - name: Push image
+        run: |
+          docker push sagardesd/reflectionbox:latest
+          docker push sagardesd/reflectionbox:${{ github.sha }}
