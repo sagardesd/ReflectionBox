@@ -2,9 +2,10 @@
 
 Your sandbox for C++26 static reflection. Clone, run one script, see output — no local LLVM install needed.
 
-Builds [Bloomberg's `clang-p2996` fork](https://github.com/bloomberg/clang-p2996) inside Docker and
-exposes a single entry-point: `./reflect <file.cc>` — it spins up the container, compiles your file,
-runs it, and streams the output back to your terminal.
+`./reflect <file.cc>` pulls a pre-built image from Docker Hub (`sagardesd/reflectionbox:latest`),
+compiles your file inside a temporary container, and streams the output back to your terminal.
+The image contains [Bloomberg's `clang-p2996` fork](https://github.com/bloomberg/clang-p2996) —
+the only experimental compiler that supports P2996 reflection today.
 
 > **Heads up:** This compiler is experimental — Bloomberg's own words are
 > *"DO NOT use for production"*. Expect occasional crashes on complex programs.
@@ -13,7 +14,7 @@ runs it, and streams the output back to your terminal.
 
 ## Prerequisites
 
-Only Docker is required to use `./reflect`. VS Code is optional (for the devcontainer editor experience).
+Only Docker is required. VS Code is optional.
 
 | Tool | Required for |
 |---|---|
@@ -25,19 +26,29 @@ Only Docker is required to use `./reflect`. VS Code is optional (for the devcont
 ## Quick start
 
 ```bash
-git clone https://github.com/<you>/ReflectionBox
+git clone https://github.com/sagardesd/ReflectionBox
 cd ReflectionBox
 ./reflect examples/reflection_demo.cc
 ```
 
-The first run builds the Docker image (~60–90 min, compiling LLVM from source).
-Every run after that is instant — Docker caches the compiler layer.
+That's it — one command to compile and run. Here's what happens under the hood:
+
+1. **First run** — pulls `sagardesd/reflectionbox:latest` from Docker Hub (~3 GB, takes 1-2 min depending on your connection).
+2. **Every subsequent run** — the image is already cached locally, so it starts instantly.
+3. A temporary container spins up, compiles your file with `-std=c++26 -freflection -stdlib=libc++`, runs the binary, streams output, and exits. Nothing is left running.
+
+> **Want to build the image from source instead?** Pass `--build`:
+> ```bash
+> ./reflect --build examples/reflection_demo.cc
+> ```
+> This compiles LLVM/Clang from source inside Docker — expect **60-90 minutes** on first build.
+> Only needed if you want to modify the compiler or can't use the Docker Hub image.
 
 ---
 
 ## Hello, reflection
 
-Once inside the container, create a file anywhere in the workspace:
+Create any `.cc` file inside the repo:
 
 ```cpp
 // hello.cc
@@ -45,17 +56,14 @@ Once inside the container, create a file anywhere in the workspace:
 #include <print>
 
 struct Point { double x, y, z; };
-
 enum class Color { Red, Green, Blue };
 
 int main() {
-    // Iterate over struct members at compile time
     std::println("Fields of Point:");
     template for (constexpr auto m : std::meta::nonstatic_data_members_of(^Point)) {
         std::println("  {}", std::meta::identifier_of(m));
     }
 
-    // Enumerate an enum's values at compile time
     std::println("Colors:");
     template for (constexpr auto e : std::meta::enumerators_of(^Color)) {
         std::println("  {}", std::meta::identifier_of(e));
@@ -63,7 +71,7 @@ int main() {
 }
 ```
 
-Compile and run it in one command (from your host):
+Run it from your host:
 
 ```bash
 ./reflect hello.cc
@@ -100,13 +108,13 @@ Colors:
 
 ## Ways to compile and run
 
-### 1. `./reflect` — from your host machine (no VS Code needed)
+### 1. `./reflect` — from your host (recommended)
 
 ```bash
-# Basic
+# Compile and run in one command (pulls image from Docker Hub on first use)
 ./reflect my_demo.cc
 
-# With compiler flags
+# Extra compiler flags
 ./reflect my_demo.cc -O2
 ./reflect my_demo.cc -freflection-latest
 ./reflect my_demo.cc -g -O0 -fsanitize=address,undefined
@@ -114,88 +122,54 @@ Colors:
 # Pass arguments to the compiled binary
 ./reflect my_demo.cc -- --input data.txt
 
-# Force a full image rebuild (e.g. after pulling new changes)
-./reflect --rebuild my_demo.cc
+# Build the image from source instead of pulling from Docker Hub
+# ⚠️  Takes 60-90 min on first build (compiles LLVM from source)
+./reflect --build my_demo.cc
 ```
 
-`reflect` does the whole thing: ensures the image exists, spawns a temporary
-container with the repo mounted, runs `cpprun` inside it, streams the output
-back, and exits with the binary's exit code. Nothing is left running afterwards.
-
----
+How it works:
+- **Without `--build` (default):** pulls `sagardesd/reflectionbox:latest` from Docker Hub on first use (~3 GB, cached after that), spins up a temporary container, runs `cpprun` inside it, and exits.
+- **With `--build`:** builds the image locally from the `Dockerfile` in `.devcontainer/`. Use this only if you need to modify the compiler setup or can't access Docker Hub.
 
 ### 2. `cpprun` inside the container (VS Code terminal)
 
+Open the folder in VS Code and click **Reopen in Container** when prompted.
+Then in the integrated terminal:
+
 ```bash
-# Basic
 cpprun my_demo.cc
-
-# Optimised
 cpprun my_demo.cc -O2
-
-# Debug + AddressSanitizer + UBSan
-cpprun my_demo.cc -g -O0 -fsanitize=address,undefined
-
-# All experimental reflection extensions enabled
 cpprun my_demo.cc -freflection-latest
-
-# Pass arguments to the compiled binary
 cpprun my_demo.cc -- --input data.txt
 ```
-
-`cpprun` compiles with `-std=c++26 -freflection -stdlib=libc++` by default.
-The binary is placed in `/tmp` so the workspace stays clean.
-
-Open the VS Code devcontainer first: open the folder in VS Code and click
-**Reopen in Container** when prompted.
 
 ### 3. VS Code task — `Ctrl+Shift+B`
 
 Open any `.cc` file and press **`Ctrl+Shift+B`** to compile and run it.
 Compiler errors appear as clickable squiggles in the editor.
 
-More variants in the task picker (`Ctrl+Shift+P` → **Run Task**):
+More variants via `Ctrl+Shift+P` → **Run Task**:
 
 | Task | Extra flags |
 |---|---|
-| compile & run | *(default)* |
-| compile & run optimised | `-O2` |
-| compile & run debug + sanitisers | `-g -O0 -fsanitize=address,undefined` |
-| compile & run reflection-latest | `-freflection-latest` |
-
-### 4. Bazel
-
-```bash
-# Run the included examples
-bazel run //:reflection_demo
-bazel run //:json26_example
-bazel test //...
-```
-
-Add your own file to `BUILD.bazel`:
-
-```python
-cc_binary(
-    name = "my_demo",
-    srcs = ["my_demo.cc"],
-)
-```
-
-Then `bazel run //:my_demo`.
+| reflect: compile & run | *(default)* |
+| reflect: compile & run -O2 | `-O2` |
+| reflect: compile & run (ASan + UBSan) | `-g -O0 -fsanitize=address,undefined` |
+| reflect: compile & run (-freflection-latest) | `-freflection-latest` |
 
 ---
 
 ## Compiler flags
 
-These are applied automatically by `cpprun` and the Bazel toolchain:
+Applied automatically by `cpprun` and `./reflect`:
 
-| Flag | Needed for |
+| Flag | Purpose |
 |---|---|
-| `-std=c++26` | P2996 syntax |
-| `-freflection` | Core reflection (`^T`, `[:e:]`, `std::meta::`) |
-| `-stdlib=libc++` | `<meta>` header (system libstdc++ doesn't have it) |
+| `-std=c++26` | Required for P2996 syntax |
+| `-freflection` | Core reflection — `^T`, `[:e:]`, `std::meta::` |
+| `-stdlib=libc++` | Required — system libstdc++ doesn't have `<meta>` |
 
-Optional experimental extensions (pass via `cpprun` or `copts` in Bazel):
+Optional experimental extensions:
 
 | Flag | Proposal | What it adds |
 |---|---|---|
@@ -210,65 +184,43 @@ Optional experimental extensions (pass via `cpprun` or `copts` in Bazel):
 
 ```
 ReflectionBox/
+├── reflect                     # ⭐ Entry-point: pulls Docker image + compiles + runs your file
 ├── .devcontainer/
 │   ├── Dockerfile              # 2-stage build: LLVM from source → slim dev image
 │   └── devcontainer.json       # VS Code devcontainer config
+├── .github/workflows/
+│   └── publish.yml             # CI: builds & pushes sagardesd/reflectionbox:latest to Docker Hub
 ├── .vscode/
 │   └── tasks.json              # Ctrl+Shift+B → cpprun on the open file
 ├── scripts/
 │   ├── cpprun                  # Compile-and-run helper (on $PATH inside the container)
-│   └── gen_compile_commands    # Regenerate compile_commands.json for clangd
-├── toolchain/
-│   ├── BUILD.bazel             # Bazel cc_toolchain registration
-│   └── cc_toolchain_config.bzl # Starlark toolchain config
+│   └── gen_compile_commands    # Regenerates compile_commands.json for clangd intellisense
 ├── examples/
-│   ├── reflection_demo.cc      # P2996 basics: member names, enum names, generic struct print
-│   ├── json26_example.cc       # Header-only JSON serializer/deserializer using reflection
-│   └── json26_test.cc          # Test suite for the JSON library
+│   ├── reflection_demo.cc      # Member names, enum names, generic struct printer
+│   ├── part_1_demo.cpp         # Struct introspection with define_static_array + template for
+│   ├── json_deserializer.cc    # Reflection-powered JSON → struct deserializer
+│   └── json26_example.cc       # Header-only JSON serializer/deserializer round-trip
 ├── json26.hpp                  # Reflection-powered header-only JSON library
-├── MODULE.bazel                # Bzlmod workspace
-├── BUILD.bazel                 # Bazel targets
-└── .bazelrc                    # Bazel defaults
+└── tags                        # ctags file for editor navigation
 ```
 
 ---
 
 ## Updating clangd intellisense
 
-After adding new `.cc` files, regenerate the clangd index:
+After adding new `.cc` files, regenerate the clangd index inside the container:
 
 ```bash
 gen_compile_commands
 ```
 
-This writes `compile_commands.json` at the workspace root so clangd
-autocompletes `std::meta::` correctly and understands `^T` / `[:e:]` syntax.
-
 ---
 
-## Using without VS Code
+## Build time and resources
 
-```bash
-# Build the image
-docker build \
-  --target dev \
-  --build-arg JOBS=$(nproc) \
-  -t reflectionbox \
-  -f .devcontainer/Dockerfile \
-  .
+Most users never need to build — `./reflect` pulls the pre-built image from Docker Hub in 1-2 minutes.
 
-# Mount your code and get a shell
-docker run --rm -it \
-  -v "$(pwd)":/workspace \
-  reflectionbox
-
-# Then inside the container:
-cpprun examples/reflection_demo.cc
-```
-
----
-
-## Build time and resource requirements
+The table below only applies if you pass `--build` (which compiles LLVM from source locally):
 
 | Resource | Requirement |
 |---|---|
@@ -277,15 +229,11 @@ cpprun examples/reflection_demo.cc
 | RAM | 8 GB min, 16 GB recommended |
 | Build time | ~30 min on 16 cores, ~90 min on 4 cores |
 
-The LLVM builder stage is cached after the first build. Rebuilding only the
-dev stage (e.g. changing `cpprun`) reuses the cached LLVM layer and takes
-seconds.
-
 ---
 
 ## Resources
 
 - [P2996 paper](https://wg21.link/p2996) — the full reflection proposal
 - [Bloomberg clang-p2996](https://github.com/bloomberg/clang-p2996) — the compiler this container builds
-- [Implementation status](https://github.com/bloomberg/clang-p2996/blob/p2996/P2996.md) — what's implemented, known bugs
-- [Compiler Explorer](https://godbolt.org) — online P2996 playground (no install needed for quick tests, select `clang (experimental P2996)`)
+- [Implementation status](https://github.com/bloomberg/clang-p2996/blob/p2996/P2996.md) — what's supported, known bugs
+- [Compiler Explorer](https://godbolt.org) — online P2996 playground (select `clang (experimental P2996)`)
