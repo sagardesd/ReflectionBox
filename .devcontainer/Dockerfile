@@ -50,10 +50,17 @@ RUN [ -e /opt/clang-p2996/bin/clang++ ] || \
 RUN CLANG_VER=$(ls /opt/clang-p2996/lib/clang/ | sort -V | tail -1) && \
     ln -s "/opt/clang-p2996/lib/clang/${CLANG_VER}" /opt/clang-p2996/lib/clang/current
 
-RUN echo 'int main(){}' | \
+RUN echo "=== Searching for libc++.so.1 ===" && \
+    find /opt/clang-p2996/lib -name 'libc++.so*' -ls && \
+    echo "=== Full lib directory structure ===" && \
+    ls -la /opt/clang-p2996/lib/ && \
+    ls -la /opt/clang-p2996/lib/x86_64-unknown-linux-gnu/ 2>/dev/null || true && \
+    LIBCXX_DIR=$(find /opt/clang-p2996/lib -name 'libc++.so.1' -printf '%h' -quit) && \
+    echo "=== Using LIBCXX_DIR: ${LIBCXX_DIR} ===" && \
+    echo 'int main(){}' | \
     /opt/clang-p2996/bin/clang++ -std=c++26 -freflection -stdlib=libc++ \
     -x c++ - -o /tmp/smoke && \
-    LD_LIBRARY_PATH=/opt/clang-p2996/lib /tmp/smoke && echo "Smoke test PASSED"
+    LD_LIBRARY_PATH="/opt/clang-p2996/lib:${LIBCXX_DIR}" /tmp/smoke && echo "Smoke test PASSED"
 
 
 # ============================================================
@@ -64,7 +71,7 @@ FROM ubuntu:24.04 AS dev
 ENV DEBIAN_FRONTEND=noninteractive \
     TZ=UTC \
     PATH="/opt/clang-p2996/bin:/usr/local/bin:${PATH}" \
-    LD_LIBRARY_PATH="/opt/clang-p2996/lib" \
+    LD_LIBRARY_PATH="/opt/clang-p2996/lib:/opt/clang-p2996/lib/x86_64-unknown-linux-gnu" \
     CC="/opt/clang-p2996/bin/clang" \
     CXX="/opt/clang-p2996/bin/clang++"
 
@@ -73,6 +80,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /opt/clang-p2996 /opt/clang-p2996
+
+# Register clang-p2996 libraries (including arch-specific subdirectory) with the linker
+RUN echo "=== [dev] Searching for libc++.so.1 ===" && \
+    find /opt/clang-p2996/lib -name 'libc++.so*' -ls && \
+    echo "/opt/clang-p2996/lib" > /etc/ld.so.conf.d/clang-p2996.conf && \
+    find /opt/clang-p2996/lib -name 'libc++.so.1' -printf '%h\n' -quit >> /etc/ld.so.conf.d/clang-p2996.conf && \
+    echo "=== [dev] ldconfig paths ===" && \
+    cat /etc/ld.so.conf.d/clang-p2996.conf && \
+    ldconfig && \
+    echo "=== [dev] ldconfig cache for libc++ ===" && \
+    ldconfig -p | grep libc++
 
 COPY scripts/cpprun               /usr/local/bin/cpprun
 COPY scripts/gen_compile_commands /usr/local/bin/gen_compile_commands
