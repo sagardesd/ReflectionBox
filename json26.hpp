@@ -23,10 +23,8 @@
 
 namespace json {
 
-// =============================================================================
-// Core value type
-// =============================================================================
 
+// Core value type
 struct value;
 
 using null_t   = std::monostate;
@@ -60,7 +58,7 @@ struct value {
     template <std::floating_point F>
     value(F f) : v_(static_cast<float_t>(f)) {}
 
-    // --- type queries ---
+    // type queries
     bool is_null()   const noexcept { return std::holds_alternative<null_t>(v_); }
     bool is_bool()   const noexcept { return std::holds_alternative<bool_t>(v_); }
     bool is_int()    const noexcept { return std::holds_alternative<int_t>(v_); }
@@ -70,11 +68,11 @@ struct value {
     bool is_array()  const noexcept { return std::holds_alternative<array_t>(v_); }
     bool is_object() const noexcept { return std::holds_alternative<object_t>(v_); }
 
-    // --- typed access (throws std::bad_variant_access on mismatch) ---
+    // typed access (throws std::bad_variant_access on mismatch)
     template <typename T>       T& as()       { return std::get<T>(v_); }
     template <typename T> const T& as() const { return std::get<T>(v_); }
 
-    // --- object accessors ---
+    // object accessors
     value& operator[](std::string_view k) {
         return as<object_t>()[std::string{k}];
     }
@@ -85,7 +83,7 @@ struct value {
         return is_object() && as<object_t>().count(std::string{k});
     }
 
-    // --- array accessors ---
+    // array accessors
     value&       operator[](std::size_t i)       { return as<array_t>()[i]; }
     const value& operator[](std::size_t i) const { return as<array_t>()[i]; }
 
@@ -96,7 +94,7 @@ struct value {
     }
     bool empty() const noexcept { return size() == 0; }
 
-    // --- equality ---
+    // equality
     bool operator==(const value&) const = default;
 };
 
@@ -104,10 +102,8 @@ struct value {
 inline value object(object_t o = {}) { return value{std::move(o)}; }
 inline value array(array_t a  = {}) { return value{std::move(a)}; }
 
-// =============================================================================
-// Type-category concepts
-// =============================================================================
 
+// Type-category concepts
 template <typename T>
 concept optional_like = requires(T t) {
     typename T::value_type;
@@ -142,10 +138,8 @@ concept reflectable_aggregate =
     && !std::same_as<T, std::string>
     && !std::same_as<T, std::string_view>;
 
-// =============================================================================
-// Error helper
-// =============================================================================
 
+// Error helper
 namespace detail {
 
 [[noreturn]] inline void type_mismatch(std::string_view expected, const value& got) {
@@ -162,10 +156,8 @@ namespace detail {
 
 } // namespace detail
 
-// =============================================================================
-// to_value — C++ type → json::value
-// =============================================================================
 
+// to_value — C++ type → json::value
 template <typename T>
 value to_value(const T& t) {
     if constexpr (std::same_as<T, null_t> || std::same_as<T, std::nullptr_t>) {
@@ -225,10 +217,8 @@ value to_value(const T& t) {
     }
 }
 
-// =============================================================================
-// from_value — json::value → C++ type
-// =============================================================================
 
+// from_value — json::value → C++ type
 template <typename T>
 T from_value(const value& v) {
     if constexpr (std::same_as<T, null_t>) {
@@ -305,10 +295,8 @@ T from_value(const value& v) {
     }
 }
 
-// =============================================================================
-// stringify — json::value → std::string
-// =============================================================================
 
+// stringify — json::value → std::string
 namespace detail {
 
 inline void escape(std::string& out, std::string_view s) {
@@ -405,10 +393,8 @@ inline std::string stringify(const value& v, int indent = 0) {
     return out;
 }
 
-// =============================================================================
-// parse — std::string_view → json::value
-// =============================================================================
 
+// parse — std::string_view → json::value
 namespace detail {
 
 struct parser {
@@ -602,10 +588,8 @@ inline value parse(std::string_view src) {
     return v;
 }
 
-// =============================================================================
-// Top-level convenience API
-// =============================================================================
 
+// Top-level convenience API
 // Serialize any C++ type to a JSON string.
 // indent = 0  →  compact  (default)
 // indent > 0  →  pretty-print with that many spaces per level
@@ -622,9 +606,8 @@ T deserialize(std::string_view src) {
 
 } // namespace json
 
-// =============================================================================
+
 // Usage example (compiled out unless you #define JSON26_EXAMPLE)
-// =============================================================================
 #ifdef JSON26_EXAMPLE
 #include <cassert>
 #include <iostream>
