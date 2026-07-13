@@ -141,7 +141,7 @@ Colors:
 ./reflect my_demo.cc -- --input data.txt
 
 # Build the image from source instead of pulling from Docker Hub
-# ⚠️  Takes 60-90 min on first build (compiles LLVM from source)
+# WARNING: Takes 60-90 min on first build (compiles LLVM from source)
 ./reflect --build my_demo.cc
 ```
 
