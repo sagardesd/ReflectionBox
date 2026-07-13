@@ -143,25 +143,6 @@ cpprun my_demo.cc -freflection-latest
 cpprun my_demo.cc -- --input data.txt
 ```
 
-### Help Menu Also avaialble so try that
-```./reflect --help                                            
-Usage:  ./reflect <file.cc> [compiler-flags...] [-- binary-args...]
-
-Examples:
-  ./reflect examples/reflection_demo.cc
-  ./reflect my_demo.cc -O2
-  ./reflect my_demo.cc -freflection-latest
-  ./reflect my_demo.cc -g -fsanitize=address,undefined
-  ./reflect my_demo.cc -- --my-arg value
-
-Image options (mutually exclusive):
-  (default)   Pull sagardesd/reflectionbox:latest from Docker Hub (~1-2 min first time)
-  --build     Build the image from source locally (~60-90 min, compiles LLVM)
-
-Other:
-  --help      Show this message
-```
-
 ### 3. VS Code task — `Ctrl+Shift+B`
 
 Open any `.cc` file and press **`Ctrl+Shift+B`** to compile and run it.
