@@ -18,7 +18,7 @@ CYAN='\033[0;36m'
 DIM='\033[2m'
 RESET='\033[0m'
 
-# ── Parse arguments ───────────────────────────────────────────
+# Parse arguments
 if [[ $# -lt 1 ]]; then
     echo "Usage: cpprun <file.cc> [compiler-flags...] [-- binary-args...]" >&2
     exit 1
@@ -47,18 +47,18 @@ for arg in "$@"; do
     fi
 done
 
-# ── Output binary in /tmp so the workspace stays clean ───────
+# Output binary in /tmp so the workspace stays clean
 BASENAME=$(basename "${SOURCE%.*}")
 BINARY=$(mktemp -t "cpprun_${BASENAME}_XXXXXX")
 trap 'rm -f "$BINARY"' EXIT
 
-# ── Print header ──────────────────────────────────────────────
+# Print header
 echo -e "${BOLD}${CYAN}━━━  cpprun  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
 echo -e "${DIM}  source :${RESET} ${SOURCE}"
 echo -e "${DIM}  flags  :${RESET} -std=c++26 -freflection -stdlib=libc++ ${COMPILER_FLAGS[*]:-}"
 echo -e "${BOLD}${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
 
-# ── Compile ───────────────────────────────────────────────────
+# Compile
 echo -e "\n${BOLD}[1/2] Compiling…${RESET}"
 
 COMPILE_START=$SECONDS
@@ -82,7 +82,7 @@ else
     exit 1
 fi
 
-# ── Run ───────────────────────────────────────────────────────
+# Run
 echo -e "\n${BOLD}[2/2] Running…${RESET}"
 echo -e "${BOLD}${CYAN}━━━  output  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}\n"
 
