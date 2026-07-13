@@ -31,6 +31,24 @@ cd ReflectionBox
 ./reflect examples/reflection_demo.cc
 ```
 
+```./reflect --help                                            
+Usage:  ./reflect <file.cc> [compiler-flags...] [-- binary-args...]
+
+Examples:
+  ./reflect examples/reflection_demo.cc
+  ./reflect my_demo.cc -O2
+  ./reflect my_demo.cc -freflection-latest
+  ./reflect my_demo.cc -g -fsanitize=address,undefined
+  ./reflect my_demo.cc -- --my-arg value
+
+Image options (mutually exclusive):
+  (default)   Pull sagardesd/reflectionbox:latest from Docker Hub (~1-2 min first time)
+  --build     Build the image from source locally (~60-90 min, compiles LLVM)
+
+Other:
+  --help      Show this message
+```
+
 That's it — one command to compile and run. Here's what happens under the hood:
 
 1. **First run** — pulls `sagardesd/reflectionbox:latest` from Docker Hub (~3 GB, takes 1-2 min depending on your connection).
