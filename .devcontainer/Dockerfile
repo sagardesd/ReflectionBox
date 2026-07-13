@@ -1,6 +1,4 @@
-# ============================================================
 # Stage 1 — Build Bloomberg's clang-p2996 from source
-# ============================================================
 FROM ubuntu:24.04 AS builder
 
 ARG JOBS=0
@@ -63,9 +61,7 @@ RUN echo "=== Searching for libc++.so.1 ===" && \
     LD_LIBRARY_PATH="/opt/clang-p2996/lib:${LIBCXX_DIR}" /tmp/smoke && echo "Smoke test PASSED"
 
 
-# ============================================================
 # Stage 2 — Developer image
-# ============================================================
 FROM ubuntu:24.04 AS dev
 
 ENV DEBIAN_FRONTEND=noninteractive \
