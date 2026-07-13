@@ -77,6 +77,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         binutils gdb git curl ca-certificates python3 vim less \
+        libc6-dev libgcc-s1 gcc \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /opt/clang-p2996 /opt/clang-p2996
@@ -96,7 +97,9 @@ COPY scripts/cpprun               /usr/local/bin/cpprun
 COPY scripts/gen_compile_commands /usr/local/bin/gen_compile_commands
 RUN chmod +x /usr/local/bin/cpprun /usr/local/bin/gen_compile_commands
 
-RUN groupadd --gid 1000 dev && \
+RUN userdel -r ubuntu 2>/dev/null || true && \
+    groupdel ubuntu 2>/dev/null || true && \
+    groupadd --gid 1000 dev && \
     useradd  --uid 1000 --gid dev --shell /bin/bash --create-home dev
 
 USER dev
